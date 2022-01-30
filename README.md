@@ -6,8 +6,8 @@
 Suppose one has a Python program called `run.py` which takes positional arguments.
 To call `run.py` multiple times in parallel with different input arguments, e.g.
 ```python
-python run.py 1 2
-python run.py 3 4 5
+python run.py 1 2 output_path/
+python run.py 3 4 5 output_path/
 python run.py ...
 ```
 this may be achieved by running the following in Python:
