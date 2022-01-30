@@ -68,6 +68,7 @@ def qsub(command, pbs_array_data, **kwargs):
         `local`: if True, runs the array job locally (defaults to False).
                  Intended for debugging.
         `cd`: Set the subjob working directory, defaults to cwd
+        `pass_path`: Pass `path` at the end of the call, defaults to True
     """
     if 'path' in kwargs:
         path = kwargs['path']
@@ -82,7 +83,7 @@ def qsub(command, pbs_array_data, **kwargs):
             os.system(f"""bash <<'END'
                 cd {kwargs.get('cd', '.')}
                 echo "pbs_array_args = {str_pbs_array_args}"
-                {command} {str_pbs_array_args} {path}
+                {command} {str_pbs_array_args} {path if kwargs.get('pass_path', True) else ''}
 END""")
         return
     # Distribute subjobs evenly across array chunks.
@@ -109,7 +110,7 @@ END""")
             args=($(python -c "import sys;print(' '.join(map(str, {pbs_array_data_chunk}[int(sys.argv[1])-{1000*i}])))" $PBS_ARRAY_INDEX))
             cd {kwargs.get('cd', '$PBS_O_WORKDIR')}
             echo "pbs_array_args = ${{args[*]}}"
-            {command} ${{args[*]}} {path}
+            {command} ${{args[*]}} {path if kwargs.get('pass_path', True) else ''}
 END"""
         os.system(f'qsub {PBS_SCRIPT}')
         #print(PBS_SCRIPT)
