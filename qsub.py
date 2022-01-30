@@ -47,9 +47,6 @@ import random
 def qsub(command, pbs_array_data, **kwargs):
     """A general PBS array job submitting function.
     
-# Use a single string `command`, which may have spaces for constant args,
-# instead of `const_args`
-    
     Submits a PBS array job, each subjob calling `command` followed by the
     arguments of an element of `pbs_array_data`, ending with the path of the
     output folder:
