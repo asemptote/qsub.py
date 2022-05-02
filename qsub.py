@@ -49,7 +49,7 @@ def qsub(command, pbs_array_data, **kwargs):
     
     Submits a PBS array job, each subjob calling `command` followed by the
     arguments of an element of `pbs_array_data`, ending with the path of the
-    output folder:
+    output folder (if `pass_path`=True):
     
         command *(pbs_array_data[i]) path
     
@@ -61,17 +61,22 @@ def qsub(command, pbs_array_data, **kwargs):
     Keyword args (optional):
         `path` is passed in at the end and determines the PBS job output
                location.
-        `N`, `P`, `q`, `select`, `ncpus`, `mem`, `walltime`: as in PBS qsub
+        `N`, `P`, `q`, `select`, `ncpus`, `mem`, `walltime`, `gpu`: as in PBS qsub
         `local`: if True, runs the array job locally (defaults to False).
                  Intended for debugging.
         `cd`: Set the subjob working directory, defaults to cwd
-        `pass_path`: Pass `path` at the end of the call, defaults to True
+        `pass_path`: Pass `path` at the end of the call, defaults to False.
+                     Expects bool. If string, passes custom path to command.
     """
     if 'path' in kwargs:
         path = kwargs['path']
         if path and path[-1] != os.sep: path += os.sep
     else:
         path = command.replace(' ', '_') + os.sep
+    if kwargs.get('pass_path', False):
+        post_command = path if kwargs['pass_path'] == True else kwargs['pass_path']
+    else:
+        post_command = ''
     # Create output folder.
     if not os.path.isdir(path+'job'): os.makedirs(path+'job')
     if kwargs.get('local', False):  # Run the subjobs in the current process.
@@ -80,7 +85,7 @@ def qsub(command, pbs_array_data, **kwargs):
             os.system(f"""bash <<'END'
                 cd {kwargs.get('cd', '.')}
                 echo "pbs_array_args = {str_pbs_array_args}"
-                {command} {str_pbs_array_args} {path if kwargs.get('pass_path', True) else ''}
+                {command} {str_pbs_array_args} {post_command}
 END""")
         return
     # Distribute subjobs evenly across array chunks.
@@ -101,13 +106,13 @@ END""")
             #PBS -V
             #PBS -m n
             #PBS -o {path}job -e {path}job
-            #PBS -l select={kwargs.get('select',1)}:ncpus={kwargs.get('ncpus',1)}:mem={kwargs.get('mem','1GB')}
+            #PBS -l select={kwargs.get('select',1)}:ncpus={kwargs.get('ncpus',1)}:mem={kwargs.get('mem','1GB')}{':ngpus='+str(kwargs['ngpus']) if 'ngpus' in kwargs else ''}
             #PBS -l walltime={kwargs.get('walltime','23:59:00')}
             #PBS -J {1000*i}-{1000*i + len(pbs_array_data_chunk)-1}
             args=($(python -c "import sys;print(' '.join(map(str, {pbs_array_data_chunk}[int(sys.argv[1])-{1000*i}])))" $PBS_ARRAY_INDEX))
             cd {kwargs.get('cd', '$PBS_O_WORKDIR')}
             echo "pbs_array_args = ${{args[*]}}"
-            {command} ${{args[*]}} {path if kwargs.get('pass_path', True) else ''}
+            {command} ${{args[*]}} {post_command}
 END"""
         os.system(f'qsub {PBS_SCRIPT}')
         #print(PBS_SCRIPT)
